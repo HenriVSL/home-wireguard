@@ -1,5 +1,7 @@
 # home-wireguard
 
+[![build-test-publish](https://github.com/HenriVSL/home-wireguard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HenriVSL/home-wireguard/actions/workflows/ci.yml)
+
 A small WireGuard VPN server in a container, built to be left alone.
 
 - Every device gets **two profiles**:
