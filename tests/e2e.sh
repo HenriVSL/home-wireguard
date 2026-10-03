@@ -25,6 +25,8 @@ LANHOST=172.31.20.10
 DNS=172.31.20.53
 EXTHOST=172.31.30.10
 DATA_VOL=$P-data
+WEBPW=correct-horse-e2e
+WEB=http://$SERVER_WAN:8080
 
 pass=0
 fail=0
@@ -64,6 +66,7 @@ start_server() {
     --network $P-wan --ip $SERVER_WAN \
     -e WG_HOST=$SERVER_WAN -e WG_PORT=51820 \
     -e WG_DNS=$DNS -e WG_LAN_ROUTES=172.31.20.0/24 \
+    -e WEB_PASSWORD=$WEBPW \
     -v $DATA_VOL:/data "$image" >/dev/null
   docker network connect --ip 172.31.20.2 $P-lan $P-server
   docker network connect --ip 172.31.30.2 $P-ext $P-server
@@ -84,7 +87,7 @@ docker run -d --name $P-client --cap-add NET_ADMIN \
   --sysctl net.ipv4.conf.all.src_valid_mark=1 \
   --sysctl net.ipv6.conf.all.disable_ipv6=0 \
   --network $P-wan --ip 172.31.10.3 --entrypoint sleep "$NEW" infinity >/dev/null
-docker exec $P-client apk add -q --no-cache bind-tools >/dev/null
+docker exec $P-client apk add -q --no-cache bind-tools curl >/dev/null
 
 client() { docker exec $P-client "$@"; }
 
@@ -161,6 +164,29 @@ check_not "removed peer is gone"               sh -c "docker exec $P-server wg s
 tunnel_up "$OLD_LAN"
 check     "other client unaffected by remove"  client ping -c2 -W2 $LANHOST
 tunnel_down
+
+echo "[phase2] web page"
+# curl from the client container; jar keeps the session cookie
+web() { docker exec $P-client curl -s -m 10 -b /tmp/jar -c /tmp/jar "$@"; }
+code() { web -o /dev/null -w '%{http_code}' "$@"; }
+check     "redirects to login when logged out"   test "$(code $WEB/)" = 303
+check     "wrong password refused"               test "$(code -d password=nope $WEB/login)" = 401
+check     "right password logs in"               test "$(code -d password=$WEBPW $WEB/login)" = 303
+check     "session cookie is HttpOnly+Strict"    sh -c "docker exec $P-client curl -s -D - -o /dev/null -d password=$WEBPW $WEB/login | grep -i '^set-cookie' | grep -qi 'httponly.*samesite=strict'"
+check     "device list shows existing client"    sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/ | grep -q '>ci<'"
+check     "add device via web"                   test "$(code -d name=webdev $WEB/add)" = 303
+check     "web-added peer is live"               sh -c "docker exec $P-server wg show wg0 peers | grep -qx \"\$(docker exec $P-server cat /data/clients/webdev/public.key)\""
+check     "download full profile"                sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/d/webdev/full.conf | grep -qx 'AllowedIPs = 0.0.0.0/0, ::/0'"
+check     "download lan profile"                 sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/d/webdev/lan.conf | grep -qx 'AllowedIPs = 10.66.66.0/24, 172.31.20.0/24'"
+check     "QR image served as PNG"               sh -c "docker exec $P-client curl -s -b /tmp/jar -o /dev/null -w '%{content_type}' $WEB/d/webdev/lan.png | grep -q image/png"
+check     "invalid name rejected"                sh -c "docker exec $P-client curl -s -b /tmp/jar -o /dev/null -w '%{redirect_url}' -d 'name=a/b' $WEB/add | grep -q error="
+check     "path traversal refused"               test "$(code "$WEB/d/..%2Fserver/full.conf")" = 404
+check     "cross-site POST refused"              test "$(code -H 'Origin: http://evil.example' -d name=evil $WEB/add)" = 403
+check_not "cross-site POST created nothing"      docker exec $P-server test -e /data/clients/evil
+check     "no access without cookie"             test "$(docker exec $P-client curl -s -o /dev/null -w '%{http_code}' $WEB/d/webdev/full.conf)" = 303
+check     "remove device via web"                test "$(code -X POST $WEB/d/webdev/remove)" = 303
+check_not "web-removed device is gone"           docker exec $P-server test -e /data/clients/webdev
+check     "logout ends session"                  sh -c "test \"\$(docker exec $P-client curl -s -b /tmp/jar -c /tmp/jar -o /dev/null -w '%{http_code}' -X POST $WEB/logout)\" = 303 && test \"\$(docker exec $P-client curl -s -b /tmp/jar -o /dev/null -w '%{http_code}' $WEB/)\" = 303"
 
 echo "[phase2] clean shutdown"
 docker stop -t 10 $P-server >/dev/null

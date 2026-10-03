@@ -1,0 +1,10 @@
+{{template "head"}}
+<header><h1>Home VPN</h1></header>
+<div class="card">
+{{if .Error}}<div class="err">{{.Error}}</div>{{end}}
+<form method="post" action="/login" class="inline">
+<input type="password" name="password" placeholder="Password" autocomplete="current-password" autofocus required>
+<button>Log in</button>
+</form>
+</div>
+{{template "foot"}}

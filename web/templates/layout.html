@@ -1,0 +1,28 @@
+{{define "head"}}<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home VPN</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--fg:#1d1d1f;--muted:#6b6b70;--line:#e3e3e0;--accent:#2a6df4;--danger:#c4302b;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#202023;--fg:#ececee;--muted:#9a9aa1;--line:#333338;--accent:#6b9bff;--danger:#ff6b63;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:46rem;margin:0 auto;padding:1.25rem 1rem 3rem}
+header{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem}
+h1{font-size:1.35rem;margin:0}h2{font-size:1.1rem;margin:0 0 .25rem}
+a{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;margin-bottom:1rem}
+.muted{color:var(--muted);font-size:.9rem}
+.err{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);border-radius:8px;padding:.6rem .8rem;margin-bottom:1rem}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:.55rem .25rem;border-bottom:1px solid var(--line)}th{font-weight:600;font-size:.85rem;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+form.inline{display:flex;gap:.5rem;flex-wrap:wrap}
+input{font:inherit;padding:.55rem .7rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);flex:1;min-width:10rem}
+button,.btn{font:inherit;padding:.55rem .9rem;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+button.link{background:none;color:var(--muted);padding:0;text-decoration:underline}
+.danger{background:var(--danger)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:1rem}
+.qr{width:100%;max-width:18rem;aspect-ratio:1;image-rendering:pixelated;background:#fff;border-radius:8px;padding:.5rem;display:block;margin:.75rem 0}
+</style></head><body><main>
+{{end}}
+{{define "foot"}}</main></body></html>{{end}}

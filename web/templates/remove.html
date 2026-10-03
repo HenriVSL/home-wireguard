@@ -1,0 +1,9 @@
+{{template "head"}}
+<header><h1>Remove {{.Name}}?</h1></header>
+<div class="card">
+<p>{{.Name}} is disconnected immediately and both of its profiles stop working. This can't be undone; you'd add it again as a new device.</p>
+<form method="post" action="/d/{{.Name}}/remove" class="inline">
+<button class="danger">Remove {{.Name}}</button> <a class="btn" style="background:var(--muted)" href="/d/{{.Name}}">Cancel</a>
+</form>
+</div>
+{{template "foot"}}

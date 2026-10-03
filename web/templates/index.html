@@ -1,0 +1,20 @@
+{{template "head"}}
+<header><h1>Home VPN</h1><form method="post" action="/logout"><button class="link">Log out</button></form></header>
+{{if .Error}}<div class="err">{{.Error}}</div>{{end}}
+<div class="card">
+<h2>Add device</h2>
+<p class="muted">Creates two profiles: <b>full</b> (all traffic through home) and <b>lan</b> (only home network).</p>
+<form method="post" action="/add" class="inline">
+<input name="name" placeholder="e.g. iPadAir" pattern="[A-Za-z0-9_\-]{1,32}" maxlength="32" required>
+<button>Add</button>
+</form>
+</div>
+<div class="card">
+<h2>Devices</h2>
+{{if .Devices}}
+<table><tr><th>Name</th><th>Address</th><th>Last connection</th></tr>
+{{range .Devices}}<tr><td><a href="/d/{{.Name}}">{{.Name}}</a></td><td>{{.IP}}</td><td class="muted">{{.Handshake}}</td></tr>{{end}}
+</table>
+{{else}}<p class="muted">No devices yet.</p>{{end}}
+</div>
+{{template "foot"}}

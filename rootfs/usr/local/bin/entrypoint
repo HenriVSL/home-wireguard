@@ -9,13 +9,29 @@ render_client_profiles
 ip link del wg0 2>/dev/null || true
 wg-quick up wg0
 
+pids=()
 shutdown() {
   log "stopping"
+  kill "${pids[@]}" 2>/dev/null || true
   wg-quick down wg0 || true
-  exit 0
+  exit "${1:-0}"
 }
 trap shutdown TERM INT
 
-log "ready: endpoint $WG_HOST:$WG_PORT, subnet $WG_SUBNET, dns ${WG_DNS:-none}, lan $WG_LAN_ROUTES, $(client_names | wc -l) client(s)"
 sleep infinity &
-wait $!
+pids+=($!)
+if [[ -n "${WEB_PASSWORD:-}" ]]; then
+  wg-web &
+  pids+=($!)
+  web="web page on :8080"
+else
+  web="web page disabled (WEB_PASSWORD not set)"
+fi
+
+log "ready: endpoint $WG_HOST:$WG_PORT, subnet $WG_SUBNET, dns ${WG_DNS:-none}, lan $WG_LAN_ROUTES, $(client_names | wc -l) client(s), $web"
+
+# If the web page dies, exit so Docker's restart policy brings everything back.
+set +e
+wait -n
+log "a background process exited unexpectedly"
+shutdown 1

@@ -1,0 +1,14 @@
+{{template "head"}}
+<header><h1>{{.Name}}</h1><a href="/">← All devices</a></header>
+<p class="muted">VPN address {{.IP}}. Scan with the WireGuard app (+ → Create from QR code), or download the file on the device itself and open it with WireGuard.</p>
+<div class="grid">
+<div class="card"><h2>Full</h2><p class="muted">All traffic goes through home.</p>
+<img class="qr" src="/d/{{.Name}}/full.png" alt="QR code for {{.Name}} full profile">
+<a class="btn" href="/d/{{.Name}}/full.conf">Download {{.Name}}-full.conf</a></div>
+<div class="card"><h2>LAN</h2><p class="muted">Only {{.LAN}} goes through home.</p>
+<img class="qr" src="/d/{{.Name}}/lan.png" alt="QR code for {{.Name}} lan profile">
+<a class="btn" href="/d/{{.Name}}/lan.conf">Download {{.Name}}-lan.conf</a></div>
+</div>
+<p class="muted">These contain the device's private key. Don't share them.</p>
+<p><a href="/d/{{.Name}}/remove">Remove this device…</a></p>
+{{template "foot"}}

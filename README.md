@@ -6,7 +6,8 @@ A small WireGuard VPN server in a container, built to be left alone.
   - `<name>-full`: all traffic goes through home
   - `<name>-lan`: only home LAN traffic goes through the VPN (`192.168.1.0/24`)
 - Clients use `192.168.1.201` for DNS.
-- No web UI. You manage clients with one command.
+- Manage devices from a small web page on the home network (password
+  protected), or from the command line on the server.
 
 ## How it stays up to date
 
@@ -29,16 +30,23 @@ GitHub Actions (Mondays)            Server (Tuesdays, cron)
 
 ## Usage
 
+**Web page:** open `http://<server-ip>:8088` from any device at home (or
+while connected to the VPN) and log in with `WEB_PASSWORD` from `.env`.
+Add a device, then scan its QR code with the WireGuard app or download the
+`.conf` on the device itself.
+
+**Command line** (on the server, from any folder):
+
 ```bash
-./vpn add phone           # creates phone-full + phone-lan
-./vpn show phone          # QR codes in the terminal (scan with the WireGuard app)
-./vpn show phone lan      # just one profile
-./vpn export phone        # .conf + .png files to ~/vpn-profiles
-./vpn list                # clients + last handshake
-./vpn remove phone
-./vpn backup              # tar of all keys -> keep a copy elsewhere
-./vpn logs                # container log + update log
-./vpn update              # update now instead of waiting for Tuesday
+vpn add phone           # creates phone-full + phone-lan
+vpn show phone          # QR codes in the terminal (scan with the WireGuard app)
+vpn show phone lan      # just one profile
+vpn export phone        # .conf + .png files to ~/vpn-profiles
+vpn list                # clients + last handshake
+vpn remove phone
+vpn backup              # tar of all keys -> keep a copy elsewhere
+vpn logs                # container log + update log
+vpn update              # update now instead of waiting for Tuesday
 ```
 
 ## Setup
@@ -48,10 +56,12 @@ git clone https://github.com/HenriVSL/home-wireguard ~/home-wireguard
 cd ~/home-wireguard
 cp .env.example .env      # check the values
 docker compose up -d
+ln -sf ~/home-wireguard/vpn ~/.local/bin/vpn
 (crontab -l 2>/dev/null; echo "30 4 * * 2 $HOME/home-wireguard/update.sh >> $HOME/home-wireguard/update.log 2>&1") | crontab -
 ```
 
-On the router, forward UDP `51820` to this machine. The host must have the
+On the router, forward UDP `51820` to this machine. Do **not** forward the
+web page port. The host must have the
 `wireguard` kernel module (built into Ubuntu kernels 5.6+).
 
 ## Configuration (`.env`)
@@ -62,6 +72,7 @@ On the router, forward UDP `51820` to this machine. The host must have the
 | `WG_DNS` | DNS server for clients |
 | `WG_LAN_ROUTES` | Networks the `lan` profile sends through the VPN |
 | `WG_SUBNET_PREFIX` | VPN addresses (`10.66.66.x`) |
+| `WEB_PASSWORD` / `WEB_PORT` | Web page login and port; empty password turns the page off |
 
 Every container start regenerates the profiles from `.env`. If you change
 DNS or routes, run `docker compose up -d` and re-import the profiles on
