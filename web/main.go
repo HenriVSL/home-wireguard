@@ -91,27 +91,22 @@ func securityHeaders(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'")
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Referrer-Policy", "same-origin")
 		h.Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
 }
 
 // Reject cross-site form posts (in addition to the SameSite=Strict cookie).
+// Uses the browser's Sec-Fetch-Site header, falling back to Origin vs Host.
 func sameOrigin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			if o := r.Header.Get("Origin"); o != "" && o != "http://"+r.Host && o != "https://"+r.Host {
-				http.Error(w, "cross-origin request refused", http.StatusForbidden)
-				return
-			}
-			if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-				http.Error(w, "cross-origin request refused", http.StatusForbidden)
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
-	})
+	cop := http.NewCrossOriginProtection()
+	cop.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("refused cross-origin %s %s from %s (Origin %q, Sec-Fetch-Site %q)",
+			r.Method, r.URL.Path, r.RemoteAddr, r.Header.Get("Origin"), r.Header.Get("Sec-Fetch-Site"))
+		http.Error(w, "cross-origin request refused", http.StatusForbidden)
+	}))
+	return cop.Handler(next)
 }
 
 func auth(next http.HandlerFunc) http.HandlerFunc {

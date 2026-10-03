@@ -1,3 +1,3 @@
 module home-wireguard/web
 
-go 1.22
+go 1.25

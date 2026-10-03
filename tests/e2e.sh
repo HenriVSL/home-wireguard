@@ -184,6 +184,14 @@ check     "QR image served as PNG"               sh -c "docker exec $P-client cu
 check     "invalid name rejected"                sh -c "docker exec $P-client curl -s -b /tmp/jar -o /dev/null -w '%{redirect_url}' -d 'name=a/b' $WEB/add | grep -q error="
 check     "path traversal refused"               test "$(code "$WEB/d/..%2Fserver/full.conf")" = 404
 check     "cross-site POST refused"              test "$(code -H 'Origin: http://evil.example' -d name=evil $WEB/add)" = 403
+check     "cross-site POST refused (Fetch hdr)"  test "$(code -H 'Sec-Fetch-Site: cross-site' -d name=evil $WEB/add)" = 403
+# What real browsers send for a same-page form post, incl. Origin: null
+check     "browser-style login accepted"         test "$(docker exec $P-client curl -s -o /dev/null -w '%{http_code}' -H 'Origin: null' -H 'Sec-Fetch-Site: same-origin' -d password=$WEBPW $WEB/login)" = 303
+check     "browser-style add accepted"           test "$(code -H "Origin: http://$SERVER_WAN:8080" -H 'Sec-Fetch-Site: same-origin' -d name=brdev $WEB/add)" = 303
+# Behind the LANDNS proxy the browser sees http://vpn.lan/ (own cookie jar)
+vpn() { docker exec $P-client curl -s -m 10 -b /tmp/jar2 -c /tmp/jar2 --resolve vpn.lan:8080:$SERVER_WAN -o /dev/null -w '%{http_code}' -H 'Origin: http://vpn.lan:8080' -H 'Sec-Fetch-Site: same-origin' "$@"; }
+check     "browser via proxy hostname: login"    test "$(vpn -d password=$WEBPW http://vpn.lan:8080/login)" = 303
+check     "browser via proxy hostname: remove"   test "$(vpn -X POST http://vpn.lan:8080/d/brdev/remove)" = 303
 check_not "cross-site POST created nothing"      docker exec $P-server test -e /data/clients/evil
 check     "no access without cookie"             test "$(docker exec $P-client curl -s -o /dev/null -w '%{http_code}' $WEB/d/webdev/full.conf)" = 303
 check     "remove device via web"                test "$(code -X POST $WEB/d/webdev/remove)" = 303
