@@ -1,0 +1,21 @@
+#!/bin/bash
+source /usr/local/lib/wg-common.sh
+
+init_server_keys
+render_server_conf
+render_client_profiles
+
+# A previous unclean exit can leave the interface behind.
+ip link del wg0 2>/dev/null || true
+wg-quick up wg0
+
+shutdown() {
+  log "stopping"
+  wg-quick down wg0 || true
+  exit 0
+}
+trap shutdown TERM INT
+
+log "ready: endpoint $WG_HOST:$WG_PORT, subnet $WG_SUBNET, dns ${WG_DNS:-none}, lan $WG_LAN_ROUTES, $(client_names | wc -l) client(s)"
+sleep infinity &
+wait $!

@@ -1,0 +1,30 @@
+#!/bin/bash
+# Host-side helper. Run from anywhere:
+#   ./vpn add phone | remove phone | list | show phone [full|lan]
+#   ./vpn export phone [dir]   copy phone-full/lan .conf + .png to dir (default ~/vpn-profiles)
+#   ./vpn backup [file]        tar of all keys/profiles (keep it somewhere safe)
+#   ./vpn logs | update
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")"
+
+case "${1:-}" in
+  export)
+    name=${2:?usage: vpn export <name> [dir]}
+    [[ "$name" =~ ^[A-Za-z0-9_-]{1,32}$ ]] || { echo "invalid name" >&2; exit 1; }
+    dest=${3:-$HOME/vpn-profiles}
+    mkdir -p "$dest"
+    docker exec wireguard sh -c "cd /data/clients/$name && tar cf - $name-*" | tar xf - -C "$dest"
+    ls -1 "$dest"/"$name"-*
+    ;;
+  backup)
+    out=${2:-$HOME/wireguard-backup-$(date +%F).tgz}
+    (umask 077; docker exec wireguard tar czf - -C /data . > "$out")
+    echo "wrote $out"
+    ;;
+  logs)   docker logs --tail 50 wireguard; echo; tail -20 update.log 2>/dev/null || true ;;
+  update) ./update.sh ;;
+  *)
+    tty=(); [[ -t 1 ]] && tty=(-t)
+    docker exec "${tty[@]}" wireguard wgctl "$@"
+    ;;
+esac

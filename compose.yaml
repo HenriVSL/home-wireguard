@@ -1,0 +1,14 @@
+services:
+  wireguard:
+    image: ${IMAGE:?set IMAGE in .env}
+    container_name: wireguard
+    restart: unless-stopped
+    env_file: .env
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    ports:
+      - "${WG_PORT:-51820}:51820/udp"
+    volumes:
+      - ./data:/data

@@ -1,0 +1,77 @@
+#!/bin/bash
+source /usr/local/lib/wg-common.sh
+
+usage() {
+  cat <<EOF
+usage: wgctl <command> [args]
+
+  add <name>               create a client (two profiles: full + lan)
+  remove <name>            delete a client and disconnect it
+  list                     list clients with address and last handshake
+  show <name> [full|lan]   print profile(s) as text + QR code
+EOF
+  exit "${1:-0}"
+}
+
+cmd_add() {
+  local name=${1:-} dir
+  valid_name "$name" || die "name must be 1-32 chars of A-Z a-z 0-9 _ -"
+  dir=$(client_dir "$name")
+  [[ -e "$dir" ]] && die "client '$name' already exists"
+  mkdir -p "$dir"
+  wg genkey > "$dir/private.key"
+  wg pubkey < "$dir/private.key" > "$dir/public.key"
+  wg genpsk > "$dir/psk"
+  next_free_ip > "$dir/ip"
+  render_client_profile "$name" full
+  render_client_profile "$name" lan
+  render_server_conf
+  sync_running_interface
+  log "added $name ($(cat "$dir/ip")). Show it with: wgctl show $name"
+}
+
+cmd_remove() {
+  local name=${1:-} dir
+  valid_name "$name" || die "invalid name"
+  dir=$(client_dir "$name")
+  [[ -f "$dir/public.key" ]] || die "no client '$name'"
+  rm -rf "$dir"
+  render_server_conf
+  sync_running_interface
+  log "removed $name"
+}
+
+cmd_list() {
+  local name dir pub hs ago
+  printf '%-20s %-15s %s\n' NAME ADDRESS LAST-HANDSHAKE
+  for name in $(client_names); do
+    dir=$(client_dir "$name")
+    pub=$(cat "$dir/public.key")
+    hs=$(wg show wg0 latest-handshakes 2>/dev/null | awk -v k="$pub" '$1==k {print $2}')
+    if [[ -z "$hs" || "$hs" == 0 ]]; then ago=never; else ago="$(( $(date +%s) - hs ))s ago"; fi
+    printf '%-20s %-15s %s\n' "$name" "$(cat "$dir/ip")" "$ago"
+  done
+}
+
+cmd_show() {
+  local name=${1:-} kinds=${2:-"full lan"} dir kind
+  valid_name "$name" || die "invalid name"
+  dir=$(client_dir "$name")
+  [[ -f "$dir/public.key" ]] || die "no client '$name'"
+  for kind in $kinds; do
+    [[ "$kind" == full || "$kind" == lan ]] || die "profile must be full or lan"
+    echo "===== $name-$kind.conf ====="
+    cat "$dir/$name-$kind.conf"
+    echo
+    qrencode -t ansiutf8 < "$dir/$name-$kind.conf"
+  done
+}
+
+case "${1:-}" in
+  add)    shift; cmd_add "$@" ;;
+  remove) shift; cmd_remove "$@" ;;
+  list)   cmd_list ;;
+  show)   shift; cmd_show "$@" ;;
+  -h|--help|help) usage ;;
+  *) usage 1 ;;
+esac

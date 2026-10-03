@@ -1,0 +1,62 @@
+name: build-test-publish
+
+# Weekly rebuild from a fresh alpine:3 picks up security fixes. The image is
+# only published if the end-to-end test passes; the server pulls it weekly
+# (update.sh). A failed run emails the repo owner -> time to take a look.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC; server updates Tuesdays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  actions: write # keep-alive step below
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/home-wireguard" >> "$GITHUB_ENV"
+
+      - name: Build (fresh base, no cache)
+        run: |
+          docker build --pull --no-cache -t home-wireguard:test \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" .
+
+      - name: Show versions
+        run: |
+          docker run --rm --entrypoint sh home-wireguard:test -c \
+            'echo "alpine $(cat /etc/alpine-release)"; wg --version; iptables --version'
+
+      - name: End-to-end test (incl. upgrade from current release)
+        run: tests/e2e.sh home-wireguard:test "$IMAGE:latest"
+
+      - name: Publish
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          tag=$(date -u +%Y%m%d)-${GITHUB_SHA::7}
+          for t in latest "$tag"; do
+            docker tag home-wireguard:test "$IMAGE:$t"
+            docker push -q "$IMAGE:$t"
+          done
+
+      # GitHub disables scheduled workflows after 60 days without repo
+      # activity. Re-enabling via the API resets that, so this keeps running
+      # unattended.
+      - name: Keep schedule alive
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/ci.yml/enable"
