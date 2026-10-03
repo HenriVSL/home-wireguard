@@ -46,7 +46,7 @@ GitHub Actions (Mondays)            Server (Tuesdays, cron)
 ```bash
 git clone https://github.com/HenriVSL/home-wireguard ~/home-wireguard
 cd ~/home-wireguard
-cp .env.example .env      # set IMAGE owner, check the rest
+cp .env.example .env      # check the values
 docker compose up -d
 (crontab -l 2>/dev/null; echo "30 4 * * 2 $HOME/home-wireguard/update.sh >> $HOME/home-wireguard/update.log 2>&1") | crontab -
 ```
