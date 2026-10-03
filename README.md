@@ -44,7 +44,7 @@ GitHub Actions (Mondays)            Server (Tuesdays, cron)
 ## Setup
 
 ```bash
-git clone https://github.com/OWNER/home-wireguard ~/home-wireguard
+git clone https://github.com/HenriVSL/home-wireguard ~/home-wireguard
 cd ~/home-wireguard
 cp .env.example .env      # set IMAGE owner, check the rest
 docker compose up -d
