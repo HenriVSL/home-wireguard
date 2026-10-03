@@ -13,6 +13,11 @@ h1{font-size:1.35rem;margin:0}h2{font-size:1.1rem;margin:0 0 .25rem}
 a{color:var(--accent)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;margin-bottom:1rem}
 .muted{color:var(--muted);font-size:.9rem}
+.note{border-radius:8px;padding:.6rem .8rem;margin-bottom:1rem;border:1px solid var(--line)}
+.note.error{background:color-mix(in srgb,var(--danger) 12%,transparent);border-color:var(--danger)}
+.note.warn{background:color-mix(in srgb,#d99a00 15%,transparent);border-color:#d99a00}
+.note.info{background:color-mix(in srgb,var(--accent) 10%,transparent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+table.kv th{width:9rem;vertical-align:top;font-size:.9rem}
 .err{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);border-radius:8px;padding:.6rem .8rem;margin-bottom:1rem}
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:.55rem .25rem;border-bottom:1px solid var(--line)}th{font-weight:600;font-size:.85rem;color:var(--muted)}
 tr:last-child td{border-bottom:0}

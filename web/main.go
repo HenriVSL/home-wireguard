@@ -194,7 +194,11 @@ func index(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	render(w, http.StatusOK, "index.html", map[string]any{"Devices": devs, "Error": r.URL.Query().Get("error")})
+	render(w, http.StatusOK, "index.html", map[string]any{
+		"Devices": devs,
+		"Error":   r.URL.Query().Get("error"),
+		"Status":  buildStatus(devs),
+	})
 }
 
 func addDevice(w http.ResponseWriter, r *http.Request) {

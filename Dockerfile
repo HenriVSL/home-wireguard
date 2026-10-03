@@ -8,7 +8,14 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /wg-web . && go vet ./.
 
 FROM alpine:3
 
-RUN apk add --no-cache bash iproute2 iptables ip6tables libqrencode-tools wireguard-tools
+RUN apk add --no-cache bash iproute2 iptables ip6tables libqrencode-tools tzdata wireguard-tools
+
+# Shown on the status page. Set by CI; local builds show "dev".
+ARG VERSION=dev
+ARG COMMIT=
+ARG REPO=
+RUN mkdir -p /etc/home-wireguard && printf '{"version":"%s","commit":"%s","repo":"%s","built":"%s"}\n' \
+      "$VERSION" "$COMMIT" "$REPO" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /etc/home-wireguard/version.json
 
 COPY rootfs/ /
 COPY --from=web /wg-web /usr/local/bin/wg-web

@@ -25,6 +25,7 @@ LANHOST=172.31.20.10
 DNS=172.31.20.53
 EXTHOST=172.31.30.10
 DATA_VOL=$P-data
+STATE_VOL=$P-state
 WEBPW=correct-horse-e2e
 WEB=http://$SERVER_WAN:8080
 
@@ -38,7 +39,7 @@ check_not() { local desc=$1; shift; if "$@" >/dev/null 2>&1; then bad "$desc"; e
 cleanup() {
   docker rm -f $P-server $P-client $P-lanhost $P-exthost $P-dns >/dev/null 2>&1 || true
   docker network rm $P-wan $P-lan $P-ext >/dev/null 2>&1 || true
-  docker volume rm $DATA_VOL >/dev/null 2>&1 || true
+  docker volume rm $DATA_VOL $STATE_VOL >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 cleanup
@@ -52,6 +53,7 @@ docker network create --subnet 172.31.10.0/24 $P-wan >/dev/null
 docker network create --subnet 172.31.20.0/24 $P-lan >/dev/null
 docker network create --subnet 172.31.30.0/24 $P-ext >/dev/null
 docker volume create $DATA_VOL >/dev/null
+docker volume create $STATE_VOL >/dev/null
 
 docker run -d --name $P-lanhost --network $P-lan --ip $LANHOST alpine:3 sleep infinity >/dev/null
 docker run -d --name $P-exthost --network $P-ext --ip $EXTHOST alpine:3 sleep infinity >/dev/null
@@ -67,7 +69,7 @@ start_server() {
     -e WG_HOST=$SERVER_WAN -e WG_PORT=51820 \
     -e WG_DNS=$DNS -e WG_LAN_ROUTES=172.31.20.0/24 \
     -e WEB_PASSWORD=$WEBPW \
-    -v $DATA_VOL:/data "$image" >/dev/null
+    -v $DATA_VOL:/data -v $STATE_VOL:/state:ro "$image" >/dev/null
   docker network connect --ip 172.31.20.2 $P-lan $P-server
   docker network connect --ip 172.31.30.2 $P-ext $P-server
   docker start $P-server >/dev/null
@@ -187,6 +189,21 @@ check     "no access without cookie"             test "$(docker exec $P-client c
 check     "remove device via web"                test "$(code -X POST $WEB/d/webdev/remove)" = 303
 check_not "web-removed device is gone"           docker exec $P-server test -e /data/clients/webdev
 check     "logout ends session"                  sh -c "test \"\$(docker exec $P-client curl -s -b /tmp/jar -c /tmp/jar -o /dev/null -w '%{http_code}' -X POST $WEB/logout)\" = 303 && test \"\$(docker exec $P-client curl -s -b /tmp/jar -o /dev/null -w '%{http_code}' $WEB/)\" = 303"
+
+echo "[phase2] status section"
+page() { docker exec $P-client curl -s -b /tmp/jar "$WEB/"; }
+web -o /dev/null -d password=$WEBPW $WEB/login
+check     "shows status card"                    sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/ | grep -q '<h2>Status</h2>'"
+check     "shows component versions"             sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/ | grep -q 'wireguard-tools v'"
+check     "no update yet -> info note"           sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/ | grep -q 'No automatic update has run yet'"
+# Simulate what update.sh writes after a failed update (container sees it read-only)
+docker run --rm -v $STATE_VOL:/state alpine:3 sh -c \
+  'echo "{\"time\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"result\":\"rolled-back\",\"message\":\"New version did not start\"}" > /state/last-check.json'
+check     "failed update -> error note"          sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/ | grep -q 'note error.*New version did not start'"
+docker run --rm -v $STATE_VOL:/state alpine:3 sh -c \
+  'echo "{\"time\":\"2020-01-01T00:00:00Z\",\"result\":\"up-to-date\",\"message\":\"ok\"}" > /state/last-check.json'
+check     "stale update check -> warning"        sh -c "docker exec $P-client curl -s -b /tmp/jar $WEB/ | grep -q 'note warn.*have.*t run since'"
+check_not "state dir is read-only for server"    docker exec $P-server touch /state/x
 
 echo "[phase2] clean shutdown"
 docker stop -t 10 $P-server >/dev/null

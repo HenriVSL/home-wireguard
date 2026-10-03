@@ -1,6 +1,9 @@
 {{template "head"}}
 <header><h1>Home VPN</h1><form method="post" action="/logout"><button class="link">Log out</button></form></header>
 {{if .Error}}<div class="err">{{.Error}}</div>{{end}}
+{{with .Status}}
+{{range .Notices}}<div class="note {{.Level}}">{{.Text}}{{if .Link}} <a href="{{.Link}}">Details</a>{{end}}</div>{{end}}
+{{end}}
 <div class="card">
 <h2>Add device</h2>
 <p class="muted">Creates two profiles: <b>full</b> (all traffic through home) and <b>lan</b> (only home network).</p>
@@ -17,4 +20,18 @@
 </table>
 {{else}}<p class="muted">No devices yet.</p>{{end}}
 </div>
+{{with .Status}}
+<div class="card">
+<h2>Status</h2>
+<table class="kv">
+<tr><th>Version</th><td>{{.Build.Version}}{{if .CommitURL}} · <a href="{{.CommitURL}}">source</a>{{end}}</td></tr>
+<tr><th>Contains</th><td class="muted">{{range $i, $c := .Components}}{{if $i}} · {{end}}{{$c}}{{end}}</td></tr>
+<tr><th>Last updated</th><td>{{.LastUpdate}}</td></tr>
+<tr><th>Update check</th><td>{{.LastCheck}}{{if .CheckResult}}<br><span class="muted">{{.CheckResult}}</span>{{end}}</td></tr>
+<tr><th>GitHub tests</th><td>{{if .CIURL}}<a href="{{.CIURL}}">{{.CIText}}</a>{{else}}{{.CIText}}{{end}}{{if .ActionsURL}} · <a href="{{.ActionsURL}}">all runs</a>{{end}}</td></tr>
+<tr><th>Running since</th><td>{{.Started}}</td></tr>
+<tr><th>Devices</th><td>{{.ClientsLive}} connected now, {{.ClientsTotal}} total</td></tr>
+</table>
+</div>
+{{end}}
 {{template "foot"}}

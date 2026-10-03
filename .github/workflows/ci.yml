@@ -26,12 +26,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Image name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/home-wireguard" >> "$GITHUB_ENV"
+      - name: Image name and version
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/home-wireguard" >> "$GITHUB_ENV"
+          echo "VERSION=$(date -u +%Y%m%d)-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
       - name: Build (fresh base, no cache)
         run: |
           docker build --pull --no-cache -t home-wireguard:test \
+            --build-arg VERSION="$VERSION" --build-arg COMMIT="$GITHUB_SHA" --build-arg REPO="${{ github.repository }}" \
             --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" .
 
       - name: Show versions
@@ -46,8 +49,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          tag=$(date -u +%Y%m%d)-${GITHUB_SHA::7}
-          for t in latest "$tag"; do
+          for t in latest "$VERSION"; do
             docker tag home-wireguard:test "$IMAGE:$t"
             docker push -q "$IMAGE:$t"
           done
